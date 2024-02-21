@@ -32,6 +32,7 @@ import io.legado.app.utils.postEvent
 import io.legado.app.utils.spToPx
 import io.legado.app.utils.splitNotBlank
 import io.legado.app.utils.textHeight
+import kotlinx.coroutines.CoroutineScope
 import splitties.init.appCtx
 import java.util.LinkedList
 import java.util.Locale
@@ -42,12 +43,12 @@ import java.util.Locale
 @Suppress("DEPRECATION", "ConstPropertyName")
 object ChapterProvider {
     //用于图片字的替换
-    private const val srcReplaceChar = "▩"
+    const val srcReplaceChar = "▩"
 
     //用于评论按钮的替换
-    private const val reviewChar = "▨"
+    const val reviewChar = "▨"
 
-    private const val indentChar = "　"
+    const val indentChar = "　"
 
     @JvmStatic
     var viewWidth = 0
@@ -94,25 +95,31 @@ object ChapterProvider {
         private set
 
     @JvmStatic
-    private var paragraphSpacing = 0
+    var paragraphSpacing = 0
+        private set
 
     @JvmStatic
-    private var titleTopSpacing = 0
+    var titleTopSpacing = 0
+        private set
 
     @JvmStatic
-    private var titleBottomSpacing = 0
+    var titleBottomSpacing = 0
+        private set
 
     @JvmStatic
-    private var indentCharWidth = 0f
+    var indentCharWidth = 0f
+        private set
 
     @JvmStatic
     var titlePaintTextHeight = 0f
+        private set
 
     @JvmStatic
     var contentPaintTextHeight = 0f
+        private set
 
     @JvmStatic
-    private var titlePaintFontMetrics = FontMetrics()
+    var titlePaintFontMetrics = FontMetrics()
 
     @JvmStatic
     var contentPaintFontMetrics = FontMetrics()
@@ -278,7 +285,7 @@ object ChapterProvider {
         textPage.text = stringBuilder.toString()
         textPages.forEachIndexed { index, item ->
             item.index = index
-            item.pageSize = textPages.size
+            //item.pageSize = textPages.size
             item.chapterIndex = bookChapter.index
             item.chapterSize = chapterSize
             item.title = displayTitle
@@ -290,12 +297,37 @@ object ChapterProvider {
         return TextChapter(
             bookChapter,
             bookChapter.index, displayTitle,
-            textPages, chapterSize,
+            //textPages,
+            chapterSize,
             bookContent.sameTitleRemoved,
             bookChapter.isVip,
             bookChapter.isPay,
             bookContent.effectiveReplaceRules
         )
+    }
+
+    fun getTextChapterAsync(
+        book: Book,
+        bookChapter: BookChapter,
+        displayTitle: String,
+        bookContent: BookContent,
+        chapterSize: Int,
+        scope: CoroutineScope
+    ): TextChapter {
+
+        val textChapter = TextChapter(
+            bookChapter,
+            bookChapter.index, displayTitle,
+            chapterSize,
+            bookContent.sameTitleRemoved,
+            bookChapter.isVip,
+            bookChapter.isPay,
+            bookContent.effectiveReplaceRules
+        ).apply {
+            createLayout(scope, book, bookContent)
+        }
+
+        return textChapter
     }
 
     /**

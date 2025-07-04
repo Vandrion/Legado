@@ -5,11 +5,8 @@ package io.legato.kazusa.ui.main.bookshelf.style1
 import android.annotation.SuppressLint
 import android.os.Bundle
 import android.view.View
-import android.view.ViewGroup
 import androidx.appcompat.widget.SearchView
 import androidx.fragment.app.Fragment
-import androidx.fragment.app.FragmentManager
-import androidx.fragment.app.FragmentStatePagerAdapter
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
@@ -19,13 +16,10 @@ import io.legato.kazusa.data.entities.Book
 import io.legato.kazusa.data.entities.BookGroup
 import io.legato.kazusa.databinding.FragmentBookshelf1Binding
 import io.legato.kazusa.help.config.AppConfig
-//import io.legado.app.lib.theme.accentColor
-//import io.legado.app.lib.theme.primaryColor
 import io.legato.kazusa.ui.book.group.GroupEditDialog
 import io.legato.kazusa.ui.book.search.SearchActivity
 import io.legato.kazusa.ui.main.bookshelf.BaseBookshelfFragment
 import io.legato.kazusa.ui.main.bookshelf.style1.books.BooksFragment
-import io.legato.kazusa.utils.isCreated
 import io.legato.kazusa.utils.showDialogFragment
 import io.legato.kazusa.utils.toastOnUi
 import io.legato.kazusa.utils.viewbindingdelegate.viewBinding
@@ -45,9 +39,7 @@ class BookshelfFragment1() : BaseBookshelfFragment(R.layout.fragment_bookshelf1)
     }
 
     private val binding by viewBinding(FragmentBookshelf1Binding::bind)
-    private val tabLayout: TabLayout by lazy {
-        binding.tabLayout.findViewById(R.id.tab_layout)
-    }
+
     private val bookGroups = mutableListOf<BookGroup>()
     private val fragmentMap = hashMapOf<Long, BooksFragment>()
     override val groupId: Long get() = selectedGroup?.groupId ?: 0

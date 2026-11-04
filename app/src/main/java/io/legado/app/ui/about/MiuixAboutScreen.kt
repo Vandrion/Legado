@@ -84,6 +84,7 @@ import androidx.compose.ui.graphics.BlendMode as ComposeBlendMode
 fun MiuixAboutScreen(
     state: AboutUiState,
     onIntent: (AboutIntent) -> Unit,
+    onOpenLicenses: () -> Unit,
     onBack: () -> Unit = {},
     versionName: String = appInfo.versionName,
 ) {
@@ -165,6 +166,7 @@ fun MiuixAboutScreen(
                     scrollProgress = scrollProgress,
                     versionName = versionName,
                     onIntent = onIntent,
+                    onOpenLicenses = onOpenLicenses,
                 )
             }
         }
@@ -179,6 +181,7 @@ private fun AboutContent(
     scrollProgress: Float,
     versionName: String,
     onIntent: (AboutIntent) -> Unit,
+    onOpenLicenses: () -> Unit,
 ) {
     val appState = LocalAppState.current
     val isWideScreen = LocalIsWideScreen.current
@@ -435,6 +438,10 @@ private fun AboutContent(
                         ArrowPreference(
                             title = stringResource(R.string.license),
                             onClick = { onIntent(AboutIntent.ShowMdFile(licenseTitle, "LICENSE.md")) },
+                        )
+                        ArrowPreference(
+                            title = stringResource(R.string.about_third_party_licenses),
+                            onClick = onOpenLicenses,
                         )
                         ArrowPreference(
                             title = stringResource(R.string.disclaimer),

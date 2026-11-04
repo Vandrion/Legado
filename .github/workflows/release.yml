@@ -8,7 +8,7 @@ on:
         required: false
         type: string
       force_release_cadence:
-        description: '跳过正式版至少等待 2 天的节奏检查'
+        description: '跳过正式版节奏检查（同版本 pre-release tag 与等待天数）'
         required: false
         type: boolean
         default: false

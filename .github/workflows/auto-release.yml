@@ -32,7 +32,7 @@ on:
         type: string
         default: ''
       force_release_cadence:
-        description: '跳过正式版至少等待 min_pre_release_days 天的节奏检查'
+        description: '跳过正式版节奏检查（同版本 pre-release tag 与等待天数）'
         required: false
         type: boolean
         default: false
@@ -199,18 +199,24 @@ jobs:
             --format='%(refname:short) %(creatordate:iso8601-strict)' \
             "refs/tags/$VERSION-beta.*" | head -n 1)
 
+          # force_release_cadence 同时豁免「同版本 pre-release tag 必须存在」与「等待天数」两条检查
+          if [[ "$FORCE_RELEASE_CADENCE" == "true" ]]; then
+            if [[ -n "$LATEST_BETA_LINE" ]]; then
+              LATEST_BETA_TAG=$(echo "$LATEST_BETA_LINE" | awk '{print $1}')
+              echo "已手动跳过节奏检查。最近 pre-release: $LATEST_BETA_TAG"
+            else
+              echo "已手动跳过节奏检查，未找到同版本 pre-release tag，直接放行。"
+            fi
+            exit 0
+          fi
+
           if [[ -z "$LATEST_BETA_LINE" ]]; then
-            echo "::error::正式版 $VERSION 发布前没有找到同版本 pre-release tag（例如 $VERSION-beta.1）。请先发布 pre-release。"
+            echo "::error::正式版 $VERSION 发布前没有找到同版本 pre-release tag（例如 $VERSION-beta.1）。请先发布 pre-release，或勾选 force_release_cadence 跳过。"
             exit 1
           fi
 
           LATEST_BETA_TAG=$(echo "$LATEST_BETA_LINE" | awk '{print $1}')
-          LATEST_BETA_DATE=$(echo "$LATEST_BETA_LINE" | cut -d' ' -f2-)
-
-          if [[ "$FORCE_RELEASE_CADENCE" == "true" ]]; then
-            echo "已手动跳过节奏等待检查。最近 pre-release: $LATEST_BETA_TAG ($LATEST_BETA_DATE)"
-            exit 0
-          fi
+          LATEST_BETA_DATE=$(echo "$LATEST_BETA_LINE" | cut -d ' ' -f2-)
 
           BETA_TS=$(date -d "$LATEST_BETA_DATE" +%s)
           NOW_TS=$(date +%s)

@@ -475,7 +475,11 @@ jobs:
           IS_RELEASE="${{ needs.prepare.outputs.is_release }}"
           
           if [ -n "$LAST_TAG" ] && git rev-parse -q --verify "refs/tags/$LAST_TAG" >/dev/null; then
-            COMMIT_LOG=$(git log "$LAST_TAG"..HEAD --pretty=format:"* %s" --no-merges)
+            # 历史经过 filter-repo 重写后，旧 tag 指向原生对象与 main 的重写链分叉，
+            # git log 范围会扫出海量提交（实测 1 万+条，364KB），撑爆 release action 的
+            # node 进程（Argument list too long）。限制条数兜底；tag 与 main 重新对齐后
+            # 该范围为真实增量，max-count 不影响正常场景。
+            COMMIT_LOG=$(git log "$LAST_TAG"..HEAD --pretty=format:"* %s" --no-merges --max-count=200)
           else
             COMMIT_LOG=$(git log -1 --pretty=format:"* %s")
           fi

@@ -30,3 +30,6 @@ replay_pid*.log
 
 # 本地测试书源，不入库
 /resource/
+
+# video-agent-kit 插件运行时产物（本机路径），不入库
+/.video_agent/

@@ -407,7 +407,6 @@ fun ExploreShowScreen(
             modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
             topBar = {
                 GlassMediumFlexibleTopAppBar(
-                    modifier = Modifier.responsiveHazeEffect(state = hazeState),
                     // 书源分类名常夹带装饰性符号（如 ★xx::yy【】），顶栏统一整理后再显示
                     title = StringUtils.formatCategoryTitle(state.selectedKindTitle ?: title),
                     navigationIcon = { TopBarNavigationButton(onClick = onBack) },

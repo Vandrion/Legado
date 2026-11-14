@@ -11,7 +11,9 @@ import io.legado.app.utils.fromJsonArray
 import io.legado.app.utils.fromJsonObject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.Headers
@@ -26,7 +28,9 @@ object AppUpdateGitHub : AppUpdate.AppUpdateInterface {
 
     private const val repoPath = "Vandrion/Legado"
     private const val githubApiBaseUrl = "https://api.github.com/repos/$repoPath/releases"
+    private const val releasesLatestPageUrl = "https://github.com/$repoPath/releases/latest"
     private const val manifestTimeoutMillis = 2500L
+    private const val redirectProbeTimeoutMillis = 5000L
     private const val checkTimeoutMillis = 15000L
 
     private val checkVariant: AppVariant
@@ -69,12 +73,65 @@ object AppUpdateGitHub : AppUpdate.AppUpdateInterface {
         if (!endpoint.usesGitHubApi) {
             throw NoStackTraceException("无法获取更新信息，请检查网络或更换更新源")
         }
-        return ReleaseFeed(
-            releases = getApiReleases(variant)
-                .flatMap { it.gitReleaseToAppReleaseInfo() }
-                .sortedByDescending { it.createdAt },
-            viaMirror = false
-        )
+        return try {
+            ReleaseFeed(
+                releases = getApiReleases(variant)
+                    .flatMap { it.gitReleaseToAppReleaseInfo() }
+                    .sortedByDescending { it.createdAt },
+                viaMirror = false
+            )
+        } catch (apiError: CancellationException) {
+            throw apiError
+        } catch (apiError: Exception) {
+            // GitHub API 匿名限额 60 次/小时/IP，共享出口（运营商 NAT/代理）极易撞上。
+            // releases/latest 页面的 302 目标地址自带最新 tag，网页路径与 API 配额相互
+            // 独立，作为最后的版本号探测兜底（DuoMusic 的 HTML redirect 方案同源）。
+            // 拿到 tag 但不比当前版本新时，下游照常判“已是最新版本”，限流不再直接抛给用户。
+            val tag = getLatestTagByRedirect() ?: throw apiError
+            ReleaseFeed(
+                releases = listOf(redirectFallbackInfo(tag)),
+                viaMirror = false
+            )
+        }
+    }
+
+    /**
+     * 重定向兜底拿不到变更日志与资产直链，发布页交给用户挑选（core/comic 双包）。
+     * beta 渠道在此只能看到最新正式版，好过把限流错误抛给用户。
+     */
+    private fun redirectFallbackInfo(tag: String): AppReleaseInfo = AppReleaseInfo(
+        appVariant = AppVariant.OFFICIAL,
+        createdAt = System.currentTimeMillis(),
+        note = "GitHub API 访问受限，更新内容请打开发布页面查看。",
+        name = "releases/latest",
+        downloadUrl = releasesLatestPageUrl,
+        assetUrl = "",
+        versionName = tag
+    )
+
+    /** 探测 [releasesLatestPageUrl] 的 302 目标地址，须禁用自动跟随重定向。 */
+    private val redirectProbeClient by lazy {
+        okHttpClient.newBuilder()
+            .followRedirects(false)
+            .followSslRedirects(false)
+            .build()
+    }
+
+    private suspend fun getLatestTagByRedirect(): String? {
+        return try {
+            withTimeoutOrNull(redirectProbeTimeoutMillis) {
+                withContext(Dispatchers.IO) {
+                    redirectProbeClient
+                        .newCall(Request.Builder().url(releasesLatestPageUrl).build())
+                        .execute()
+                        .use { response -> response.header("Location")?.let(::parseLatestTagFromLocation) }
+                }
+            }
+        } catch (error: CancellationException) {
+            throw error
+        } catch (_: Exception) {
+            null
+        }
     }
 
     private suspend fun getManifestReleases(variant: AppVariant): ManifestFeed? {
@@ -334,6 +391,13 @@ object AppUpdateGitHub : AppUpdate.AppUpdateInterface {
         return SemVer.parse(this).compareTo(SemVer.parse(other))
     }
 }
+
+/**
+ * `https://github.com/<repo>/releases/latest` 的 302 目标形如
+ * `.../releases/tag/<tag>`，其中的 [tag] 即最新正式版版本号。
+ */
+internal fun parseLatestTagFromLocation(location: String): String? =
+    Regex("""/releases/tag/([^/?#]+)""").find(location)?.groupValues?.get(1)
 
 internal fun githubApiException(
     code: Int,

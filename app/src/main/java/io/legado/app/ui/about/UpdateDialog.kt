@@ -1,5 +1,7 @@
 package io.legado.app.ui.about
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.view.View
@@ -77,7 +79,16 @@ class UpdateDialog() : BaseBottomSheetDialogFragment(R.layout.dialog_update) {
                 binding.ivAward.gone()
                 binding.tvUrl.text = url
                 binding.btnUpdate.setOnClickListener {
-                    if (url.isNullOrBlank() || fileName.isNullOrBlank()) {
+                    if (url.isNullOrBlank()) {
+                        toastOnUi(R.string.about_download_info_incomplete)
+                        return@setOnClickListener
+                    }
+                    if (!url.endsWith(".apk", ignoreCase = true)) {
+                        // 重定向兜底拿到的是发布页而非 APK 直链：跳浏览器由用户挑选 core/comic 安装包
+                        startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+                        return@setOnClickListener
+                    }
+                    if (fileName.isNullOrBlank()) {
                         toastOnUi(R.string.about_download_info_incomplete)
                         return@setOnClickListener
                     }

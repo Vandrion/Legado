@@ -47,6 +47,25 @@ class AppUpdateGitHubTest {
         assertEquals("获取新版本出错(500): Internal Server Error", error.message)
     }
 
+    @Test
+    fun `redirect location exposes latest tag`() {
+        assertEquals(
+            "3.26.26",
+            parseLatestTagFromLocation("https://github.com/Vandrion/Legado/releases/tag/3.26.26")
+        )
+        assertEquals(
+            "v2.3.0",
+            parseLatestTagFromLocation("https://github.com/Vandrion/Legado/releases/tag/v2.3.0")
+        )
+    }
+
+    @Test
+    fun `redirect location without tag segment yields null`() {
+        assertEquals(null, parseLatestTagFromLocation("https://github.com/Vandrion/Legado"))
+        assertEquals(null, parseLatestTagFromLocation("https://github.com/Vandrion/Legado/releases"))
+        assertEquals(null, parseLatestTagFromLocation("https://github.com/Vandrion/Legado/releases/latest"))
+    }
+
     private fun headers(vararg namesAndValues: String): Headers {
         return Headers.Builder().apply {
             namesAndValues.asList().chunked(2).forEach { (name, value) ->

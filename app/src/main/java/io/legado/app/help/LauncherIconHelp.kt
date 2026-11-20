@@ -15,14 +15,18 @@ import splitties.init.appCtx
  * 更换图标
  */
 object LauncherIconHelp {
-    private val packageManager: PackageManager = appCtx.packageManager
-    private val componentNames = arrayListOf(
-        ComponentName(appCtx, Launcher0::class.java.name),
-        ComponentName(appCtx, Launcher1::class.java.name),
-        ComponentName(appCtx, Launcher2::class.java.name),
-        ComponentName(appCtx, Launcher3::class.java.name),
-        ComponentName(appCtx, Launcher4::class.java.name)
-    )
+    // by lazy 延迟到 changeIcon 实际使用 Android 上下文时再初始化，
+    // 保证 normalizeIcon 纯函数可在 JVM 单元测试中安全调用
+    private val packageManager: PackageManager by lazy { appCtx.packageManager }
+    private val componentNames by lazy {
+        arrayListOf(
+            ComponentName(appCtx, Launcher0::class.java.name),
+            ComponentName(appCtx, Launcher1::class.java.name),
+            ComponentName(appCtx, Launcher2::class.java.name),
+            ComponentName(appCtx, Launcher3::class.java.name),
+            ComponentName(appCtx, Launcher4::class.java.name)
+        )
+    }
 
     fun normalizeIcon(icon: String?): String? {
         return when (icon) {

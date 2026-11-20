@@ -37,7 +37,9 @@ import io.legado.app.ui.theme.LocalHasMiuixPopupHost
 import io.legado.app.ui.theme.ThemeResolver
 import io.legado.app.ui.theme.LocalMiuixBarBackdrop
 import io.legado.app.ui.theme.ProvideAppDensity
+import io.legado.app.ui.theme.ProvidePopupThemeOverride
 import io.legado.app.ui.theme.rememberMochiOverlayBackdrop
+import io.legado.app.ui.theme.rememberPopupThemeOverride
 import kotlinx.collections.immutable.persistentListOf
 import ui.feice.mochi.basic.MochiDialog
 import ui.feice.mochi.effect.glass.LocalMochiBackdrop
@@ -70,6 +72,37 @@ fun AppAlertDialog(
     onDismiss: (() -> Unit)? = null,
 ) {
     when (composeEngine) {
+        ComposeEngine.Oxygen -> {
+            io.oxygenx.material3.ProvideMaterial3Content {
+                if (show) {
+                    io.oxygenx.ui.basic.AlertDialog(
+                        onDismissRequest = onDismissRequest,
+                        modifier = modifier,
+                        title = title?.let { value -> { io.legado.app.ui.widget.components.text.AppText(value) } },
+                        text = if (text != null || content != null) {
+                            {
+                                ProvideAppDensity {
+                                    Column(Modifier.verticalScroll(rememberScrollState())) {
+                                        text?.let { value -> SelectionContainer { io.legado.app.ui.widget.components.text.AppText(value) } }
+                                        content?.invoke()
+                                    }
+                                }
+                            }
+                        } else null,
+                        confirmButton = {
+                            onConfirm?.let { action ->
+                                io.oxygenx.ui.basic.TextButton(action, enabled = confirmEnabled) {
+                                    io.legado.app.ui.widget.components.text.AppText(confirmText)
+                                }
+                            }
+                        },
+                        dismissButton = onDismiss?.let { action ->
+                            { io.oxygenx.ui.basic.TextButton(action) { io.legado.app.ui.widget.components.text.AppText(dismissText) } }
+                        },
+                    )
+                }
+            }
+        }
         ComposeEngine.Miuix -> {
             val themeSettings = LocalAppUiConfiguration.current.theme
             // 开关打开后只走玻璃；无玻璃设施的独立窗口（如朗读悬浮窗）才退回窗口弹窗。
@@ -78,7 +111,8 @@ fun AppAlertDialog(
                 LocalAppGlassOverlay.current != null
             val backdrop = LocalMiuixBarBackdrop.current
             val glassOverlay = LocalAppGlassOverlay.current
-            val dialogBody: @Composable () -> Unit = {
+            val themeOverride = rememberPopupThemeOverride()
+            val rawDialogBody: @Composable () -> Unit = {
                 // WindowDialog has no popup host; its content must not inherit the Scaffold's
                 // host signal. A glass dialog shares the root host with its dropdowns.
                 CompositionLocalProvider(
@@ -142,6 +176,13 @@ fun AppAlertDialog(
                             }
                         }
                     }
+                }
+            }
+            // 玻璃 dialog 的内容由 root popup host 的独立 composition 执行，只继承全局
+            // 色板；在这里重放宿主侧捕获的页面级覆盖，窗口分支重复提供同值幂等。
+            val dialogBody: @Composable () -> Unit = {
+                ProvidePopupThemeOverride(themeOverride) {
+                    rawDialogBody()
                 }
             }
             if (useGlassContainer) {

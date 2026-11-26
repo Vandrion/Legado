@@ -4,7 +4,7 @@
 
 计划：固定 0.0.1 分发包 → 主题 / 字体 / locals / 局部覆盖 → 基础控件与设置行 → 顶栏 / 导航 / 菜单 / 弹层 → 双产品编译、组件回归与真机验证。
 
-依赖来源：vendor/oxygenx 中保存本地构建的非官方、experimental Maven 压缩包及原始构建信息，manifest.json 记录 SHA-256 和 dirty=true。Gradle 校验后解压到 .gradle/oxygenx，避免 clean 删除依赖，不依赖开发机外部路径或尚不存在的 GitHub Release；后续正式发布可替换为已校验的远端制品。不得把此开发快照描述为来自已发布 tag。
+依赖来源：vendor/oxygenx 中保存本地构建的非官方、experimental Maven 压缩包及原始构建信息，manifest.json 记录源提交、构建时工作区状态与 SHA-256。Gradle 校验后解压到 .gradle/oxygenx，避免 clean 删除依赖，不依赖开发机外部路径或尚不存在的 GitHub Release；后续正式发布可替换为已校验的远端制品。不得把此开发快照描述为来自已发布 tag。
 
 适配原则：Oxygen 专用控件进入 App* 分支，通用 ListItem / 日期或数字选择器保留 M3；没有对应能力的控件保留明确的 Material 实现。AppScaffold 继续承载原有背景、overlay 与 Insets；不强换业务状态类型。OxygenTheme 仅在选定引擎下接管过冲。
 
@@ -151,3 +151,30 @@ Core / Comic 各 4 项定向验证通过，包括实际布局字号、行高、�
 普通和折叠顶栏使用 74dp 高度，18sp / 24sp 标题，字体和字重由宿主 M3 titleLarge 提供。紧凑导航图形用 16dp 画布，宿主 TopBarNavigationButton 读取槽位尺寸，导航触摸目标为 48dp，紧凑内容中心下移 4dp。展开标题沿用 displayMedium，书架操作和菜单沿用既有尺寸。
 
 LE2100 同机复拍栏高为 208px，catalog 折叠「设置」墨迹 96×45px，系统 95×45px。Core / Comic 各 5 项字形、按钮与刷新回归通过，双 Debug APK 和架构门禁通过。日志为 build/oxygenx-le2100-calibration-final.log。本地快照 SHA-256 为 `a0cc6eefbf5902a70a30204466479c9aa19c26cfc031e28d239aedb0949be2c3`。
+
+## 主页面接入横划顶栏
+
+`PagerTopBar` 上移到主壳只渲染一条，避免横划时顶栏跟着页面平移、以及多实例叠加重绘。启用条件是 Oxygen 引擎加外观设置里的「横划顶栏」开关（`usePagerTopBar`）；开启后主页底栏与横向侧栏自动隐藏，播放胶囊锚点回到全局胶囊。
+
+- `MainScreen` 持有 `MainPagerTopBarHost`，经 `LocalMainPagerTopBarHost` 下发给五个主页面；页面用 `MainPagerPageChromeEffect` 注册副标题、操作区与顶栏下方内容，自身不再渲染顶栏。
+- 标题与副标题必须显式读取 `OxygenTheme.textStyle` / `OxygenTheme.contentColor`。Oxygen 与 M3 的 `LocalTextStyle`、`LocalContentColor` 是两套不同的 CompositionLocal，混用会让 displayMedium 退化成正文字号、副标题丢失 onSurfaceVariant。
+- 发现的源列表模式也把顶栏交给主壳（模式切换、搜索、分组菜单进入操作区，内联搜索进顶栏下方内容槽）。顶栏不能按页消失：高度从 208dp 掉到 0 会让 pager 重新测量并掐断横划手势。
+- 横划模式下书架分组页签、发现分类页签移到页面底部（子页 `AppScaffold.bottomBar`），有分组/分类时才显示，进出走 `slideInVertically + fadeIn` / `slideOutVertically + fadeOut`，并自己处理导航栏 inset。订阅与书架的内联搜索仍留在顶栏下方内容槽；旧顶栏模式（关闭开关或其他引擎）保持页签在顶栏下方。catalog 的顶栏没有这一层。
+
+## 横划顶栏按页居中和收拢副标题（2026-11-20）
+
+OxygenX `PagerTopBar` 按每页实测内容高度将标题和副标题作为一组居中。没有副标题时单独居中标题。收拢态共用标准 `TopAppBar` 的 74dp 高度和内容纵向偏移，单双行的底部留白与同形态的标准栏对齐。横划指示器位于栏内顶部。
+
+`MainPagerTopBar` 使用 `hideSubtitleOnCollapse = false`，让有副标题的页面收拢后仍显示两行。库原有重载继续在收拢前半程淡出副标题。Catalog 横划示例展示有副标题和无副标题的页面，并在收拢后保留副标题。Legado 使用锁定制品 `0.0.2-local.4`。
+
+定向回归对比标准栏与折叠横划栏的单行、双行高度和底部留白，并覆盖展开态居中、收拢态副标题绘制与横划中间帧。OxygenX `check` 和 Catalog Android 构建通过。Legado Core、Comic 的定向回归、Debug 打包和架构门禁通过。真机视觉和性能尚未复测。
+
+## 顶栏状态恢复与下拉刷新（2026-11-24）
+
+本地 Maven 快照升级至 0.0.2-local.10，源提交为 HapeLee/OxygenX@815d1d6，SHA-256 为 f70ce5ea9b7e088d82240f2e9f4759c8a23844ad50a1820c6685c20994bdbfe1。
+
+大顶栏与横划顶栏随导航回栈恢复折叠进度。操作按钮在展开、折叠和过渡中沿用各自的折叠态底部间距，按默认 48dp 触摸区域计分别为 9dp 和 11dp。操作区为空时，标题位置与正文起点沿用同一布局。
+
+下拉刷新沿用 Material 3 的停靠与触发行为。正文保持原位，48dp 圆形底板承载 Oxygen 的细圆环。现有 AppPullToRefresh 继续使用顶栏门控和指示器顶部偏移。
+
+独立 Maven 消费构建通过。Core 49 项、Comic 11 项定向回归通过，两种产品的 Debug 打包与 verifyConfigArchitecture 通过。日志为 build/oxygenx-local.10-integration.log。本轮未复测 MD3 真机。
